@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title></title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+html,body{
+  margin:0;
+  padding:0;
+  width:100%;
+  height:100%;
+  overflow:hidden;
+  background:#000; /* ← КЛЮЧЕВО */
+  font-family:Arial,sans-serif;
+}
+
+#scene{
+  position:fixed;
+  inset:0;
+  background:#000;
+}
+
+/* ФОН */
+#bg{
+  position:absolute;
+  inset:0;
+  width:100%;
+  height:100%;
+  object-fit:contain;
+  object-position:center;
+  background:#000;
+  z-index:0;
+}
+
+/* затемнение */
+#overlay{
+  position:absolute;
+  inset:0;
+  background:rgba(0,0,0,0.15);
+  z-index:1;
+}
+
+/* CANVAS */
+canvas{
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+  z-index:2;
+}
+
+/* ТЕКСТ */
+#greeting{
+  position:absolute;
+  top:8%;
+  width:100%;
+  text-align:center;
+  font-weight:900;
+  font-size:clamp(24px,6vw,64px);
+  color:#fff;
+  z-index:3;
+  opacity:0;
+  transform:perspective(800px) rotateX(20deg);
+  transition:1.5s ease;
+  text-shadow:
+    0 1px 0 #ccc,
+    0 3px 0 #aaa,
+    0 6px 12px rgba(0,0,0,.6),
+    0 0 30px gold;
+}
+#greeting.show{
+  opacity:1;
+  transform:perspective(800px) rotateX(0deg);
+}
+@keyframes glow{
+  from{ text-shadow:0 0 20px gold; }
+  to{ text-shadow:0 0 60px gold; }
+}
+#greeting.glow{ animation:glow 2.5s infinite alternate; }
+
+/* КНОПКА */
+#startBtn{
+  position:absolute;
+  top:45%;
+  left:50%;
+  transform:translateX(-50%);
+  padding:16px 36px;
+  font-size:22px;
+  border-radius:40px;
+  border:none;
+  cursor:pointer;
+  z-index:4;
+}
+</style>
+</head>
+
+<body>
+
+<div id="scene">
+
+  <!-- ⚠️ ВАЖНО: имя файла -->
+  <img id="bg" src="card.jpg" alt="Открытка"
+       onerror="this.style.display='none';">
+
+  <div id="overlay"></div>
+  <canvas id="canvas"></canvas>
+
+  <div id="greeting">
+    <br>
+  </div>
+
+  <button id="startBtn"
+    onclick="
+      this.style.display='none';
+      greeting.classList.add('show','glow');
+      music.play();
+      startFireworks(music);
+    ">
+    ▶ Включить музыку
+  </button>
+
+  <audio id="music" src="music.mp3" preload="auto"></audio>
+</div>
+
+<script>
+const canvas=document.getElementById('canvas');
+const ctx=canvas.getContext('2d');
+
+function resize(){
+  canvas.width=innerWidth;
+  canvas.height=innerHeight;
+}
+resize(); addEventListener('resize',resize);
+
+let rockets=[],particles=[];
+
+class Rocket{
+  constructor(){
+    this.x=Math.random()*canvas.width;
+    this.y=canvas.height;
+    this.vy=-(Math.random()*6+8);
+    this.color=`hsl(${Math.random()*360},100%,60%)`;
+  }
+  update(){
+    this.y+=this.vy;
+    this.vy+=0.15;
+    if(this.vy>=0){
+      explode(this.x,this.y,this.color);
+      return false;
+    }
+    return true;
+  }
+  draw(){
+    ctx.save();
+    ctx.shadowBlur=20;
+    ctx.shadowColor=this.color;
+    ctx.fillStyle=this.color;
+    ctx.beginPath();
+    ctx.arc(this.x,this.y,3,0,Math.PI*2);
+    ctx.fill();
+    ctx.restore();
+  }
+}
+
+class Particle{
+  constructor(x,y,c){
+    this.x=x; this.y=y;
+    this.vx=(Math.random()-0.5)*6;
+    this.vy=(Math.random()-0.5)*6;
+    this.life=100;
+    this.alpha=1;
+    this.color=c;
+  }
+  update(){
+    this.x+=this.vx;
+    this.y+=this.vy;
+    this.vy+=0.05;
+    this.alpha-=0.015;
+    this.life--;
+  }
+  draw(){
+    ctx.save();
+    ctx.globalAlpha=this.alpha;
+    ctx.shadowBlur=25;
+    ctx.shadowColor=this.color;
+    ctx.fillStyle=this.color;
+    ctx.beginPath();
+    ctx.arc(this.x,this.y,3,0,Math.PI*2);
+    ctx.fill();
+    ctx.restore();
+  }
+}
+
+function explode(x,y,c){
+  for(let i=0;i<90;i++)particles.push(new Particle(x,y,c));
+}
+
+function animate(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  rockets=rockets.filter(r=>{r.draw(); return r.update();});
+  particles=particles.filter(p=>p.life>0);
+  particles.forEach(p=>{p.update();p.draw();});
+  requestAnimationFrame(animate);
+}
+animate();
+
+function startFireworks(audio){
+  let last=0;
+  audio.addEventListener('timeupdate',()=>{
+    if(audio.currentTime-last>0.6){
+      rockets.push(new Rocket());
+      last=audio.currentTime;
+    }
+  });
+}
+</script>
+
+</body>
+</html>
